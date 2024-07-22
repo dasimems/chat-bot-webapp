@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { Inter } from "next/font/google";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Send2 } from "iconsax-react";
 import { io } from "socket.io-client";
@@ -17,23 +17,47 @@ interface MessageType {
 const socket = io("https://chat-bot-u7ou.onrender.com", {});
 export default function Home() {
   const [messages, setMessages] = useState<MessageType[]>([]);
+  const [pageLoaded, setPageLoaded] = useState(false);
 
-  socket.on("connection", (socket) => {
-    setMessages((prevState) => [
-      ...prevState,
-      {
-        message: `You initiated this conversation with ID ${socket.id}`,
-        type: "NOTIFICATION",
-        isSender: true,
-        createdAt: Date.now()
+  useEffect(() => {
+    setPageLoaded((prevState) => {
+      if (!prevState) {
+        socket.on("connection", (socket) => {
+          console.log(socket.id); // x8WIv7-mJelg7on_ALbx
+        });
+        setMessages((prevState) => [
+          ...prevState,
+          {
+            message: `You initiated this conversation`,
+            type: "NOTIFICATION",
+            isSender: true,
+            createdAt: Date.now()
+          }
+        ]);
+        socket.on("response", ({ response }) => {
+          // console.log("received a response", response);
+          setMessages((prevState) => [
+            ...prevState,
+            {
+              message: response,
+              type: "MESSAGE",
+              isSender: false,
+              createdAt: Date.now()
+            }
+          ]);
+        });
       }
-    ]);
-    console.log(socket.id); // x8WIv7-mJelg7on_ALbx
-  });
 
-  socket.on("connect", () => {});
+      return true;
+    });
+  }, []);
 
-  socket.on("response", () => {});
+  useEffect(() => {
+    window.scrollTo({
+      left: 0,
+      top: window.innerHeight
+    });
+  }, [messages]);
 
   const {
     register,
@@ -61,13 +85,16 @@ export default function Home() {
       }
     ]);
     socket.emit("message", data);
+    reset({
+      message: ""
+    });
   };
   return (
     <div className="relative">
       <div className="sticky top-0 bg-slate-100  px-10 py-6">
         <h1>User</h1>
       </div>
-      <div className="pb-20 px-10">
+      <div className="pb-24 px-10">
         {messages &&
           messages.map(({ createdAt, isSender, message, type }) => (
             <div
